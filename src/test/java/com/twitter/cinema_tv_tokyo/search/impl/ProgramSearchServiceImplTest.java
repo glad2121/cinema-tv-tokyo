@@ -2,6 +2,7 @@ package com.twitter.cinema_tv_tokyo.search.impl;
 
 import static org.junit.Assert.*;
 
+import java.net.Authenticator;
 import java.net.URL;
 import java.util.List;
 
@@ -11,6 +12,7 @@ import org.junit.Test;
 
 import com.twitter.cinema_tv_tokyo.common.model.Page;
 import com.twitter.cinema_tv_tokyo.common.model.Program;
+import com.twitter.cinema_tv_tokyo.common.util.ProxyAuthenticator;
 import com.twitter.cinema_tv_tokyo.search.ProgramSearchService;
 
 /**
@@ -45,6 +47,10 @@ public class ProgramSearchServiceImplTest {
     }
 
     public static void main(String[] args) {
+        ProxyAuthenticator authenticator = ProxyAuthenticator.INSTANCE;
+        if (authenticator.getProxyUser() != null) {
+            Authenticator.setDefault(authenticator);
+        }
         ProgramSearchService service = new ProgramSearchServiceImpl();
         Page<Program> page = service.findProgram(null);
         for (Program program : page.getContent()) {
