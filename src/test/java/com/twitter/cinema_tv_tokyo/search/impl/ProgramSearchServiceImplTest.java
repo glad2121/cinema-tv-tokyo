@@ -4,6 +4,7 @@ import static org.junit.Assert.*;
 
 import java.net.Authenticator;
 import java.net.URL;
+import java.util.Calendar;
 import java.util.List;
 
 import org.junit.After;
@@ -12,6 +13,7 @@ import org.junit.Test;
 
 import com.twitter.cinema_tv_tokyo.common.model.Page;
 import com.twitter.cinema_tv_tokyo.common.model.Program;
+import com.twitter.cinema_tv_tokyo.common.model.ProgramCriteria;
 import com.twitter.cinema_tv_tokyo.common.util.ProxyAuthenticator;
 import com.twitter.cinema_tv_tokyo.search.ProgramSearchService;
 
@@ -52,7 +54,11 @@ public class ProgramSearchServiceImplTest {
             Authenticator.setDefault(authenticator);
         }
         ProgramSearchService service = new ProgramSearchServiceImpl();
-        Page<Program> page = service.findProgram(null);
+        ProgramCriteria criteria = new ProgramCriteria();
+        Calendar calendar = Calendar.getInstance();
+        calendar.add(Calendar.DAY_OF_MONTH, 2);
+        //criteria.setDate(calendar.getTime());
+        Page<Program> page = service.findProgram(criteria);
         for (Program program : page.getContent()) {
             System.out.println(program);
         }

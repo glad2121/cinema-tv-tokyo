@@ -9,6 +9,7 @@ import net.htmlparser.jericho.Element;
 import net.htmlparser.jericho.Segment;
 import net.htmlparser.jericho.Source;
 
+import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,40 +19,50 @@ import com.twitter.cinema_tv_tokyo.common.model.ProgramCriteria;
 import com.twitter.cinema_tv_tokyo.search.ProgramSearchService;
 
 /**
- * 
+ * {@link ProgramSearchService} の実装。
  * 
  * @author ITO Yoshiichi
  */
 public class ProgramSearchServiceImpl implements ProgramSearchService {
 
+    static final String BASE_URL =
+            "http://tv.yahoo.co.jp/search/?g=06&oa=1&a=23";
+
     static final Logger logger =
             LoggerFactory.getLogger(ProgramSearchServiceImpl.class);
 
     public Page<Program> findProgram(ProgramCriteria criteria) {
-        if (criteria == null || criteria.getOffset() == null) {
-            List<Program> list = doFindAll();
-            return new Page<Program>(list.size(), 0, list);
+        String url = BASE_URL;
+        Integer offset = null;
+        if (criteria != null) {
+            offset = criteria.getOffset();
+            StringBuilder sb = new StringBuilder();
+            sb.append(url);
+            String date = criteria.getDate();
+            if (date != null) {
+                sb.append("&d=").append(StringUtils.join(date.split("-")));
+            }
+            url = sb.toString();
+        }
+        if (offset == null) {
+            return doFindAll(url);
         } else {
-            return doFind(criteria.getOffset());
+            return doFind(url, offset);
         }
     }
 
-    List<Program> doFindAll() {
+    Page<Program> doFindAll(String url) {
         List<Program> list = new ArrayList<Program>();
-        Page<Program> page = doFind(null);
+        Page<Program> page = doFind(url, null);
         list.addAll(page.getContent());
         while (list.size() < page.getTotalCount()) {
-            page = doFind(list.size());
+            page = doFind(url, list.size());
             list.addAll(page.getContent());
         }
-        return list;
+        return new Page<Program>(list.size(), 0, list);
     }
 
-    static final String BASE_URL =
-            "http://tv.yahoo.co.jp/search/?g=06&oa=1&a=23";
-
-    Page<Program> doFind(Integer offset) {
-        String url = BASE_URL;
+    Page<Program> doFind(String url, Integer offset) {
         if (offset != null) {
             url += "&s=" + (offset + 1);
         }
@@ -131,14 +142,36 @@ public class ProgramSearchServiceImpl implements ProgramSearchService {
         return program;
     }
 
+    /**
+     * 日付を返す。
+     * 
+     * @return "YYYY-MM-DD"
+     */
     String getDate(Element left) {
-        return left.getFirstElement("span")
-                .getContent().toString().replace('/', '-');
+        String s = left.getFirstElement("span").getContent().toString();
+        String[] a = s.split("/");
+        for (int i = 1; i <= 2; ++i) {
+            if (a[i].length() == 1) {
+                a[i] = '0' + a[i];
+            }
+        }
+        return StringUtils.join(a, '-');
     }
 
+    /**
+     * 時刻を返す。
+     * 
+     * @return ["hh:mm", "hh:mm"]
+     */
     String[] getTime(Element left) {
-        return left.getFirstElement("em")
+        String[] a = left.getFirstElement("em")
                 .getContent().toString().split("[^\\d:]");
+        for (int i = 0; i < 2; ++i) {
+            if (a[i].length() == 4) {
+                a[i] = '0' + a[i];
+            }
+        }
+        return a;
     }
 
     String getGcode(Element left) {
@@ -162,7 +195,10 @@ public class ProgramSearchServiceImpl implements ProgramSearchService {
 
     String getDescription(Element right) {
         return right.getAllElements("p")
-                .get(2).getContent().toString();
+                .get(2).getContent().toString()
+                .replaceAll("&lt;", "<")
+                .replaceAll("&gt;", ">")
+                .replaceAll("&amp;", "&");
     }
 
 }
