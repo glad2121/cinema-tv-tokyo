@@ -3,6 +3,7 @@ package com.twitter.cinema_tv_tokyo.search.impl;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 
 import net.htmlparser.jericho.Element;
@@ -16,6 +17,7 @@ import org.slf4j.LoggerFactory;
 import com.twitter.cinema_tv_tokyo.common.model.Page;
 import com.twitter.cinema_tv_tokyo.common.model.Program;
 import com.twitter.cinema_tv_tokyo.common.model.ProgramCriteria;
+import com.twitter.cinema_tv_tokyo.common.util.DateUtils;
 import com.twitter.cinema_tv_tokyo.search.ProgramSearchService;
 
 /**
@@ -26,7 +28,7 @@ import com.twitter.cinema_tv_tokyo.search.ProgramSearchService;
 public class ProgramSearchServiceImpl implements ProgramSearchService {
 
     static final String BASE_URL =
-            "http://tv.yahoo.co.jp/search/?g=06&oa=1&a=23";
+            "http://tv.yahoo.co.jp/search/?g=06&oa=1&a=23&oc=%2B60";
 
     static final Logger logger =
             LoggerFactory.getLogger(ProgramSearchServiceImpl.class);
@@ -80,37 +82,39 @@ public class ProgramSearchServiceImpl implements ProgramSearchService {
 
     Page<Program> parse(Source source) throws IOException {
         Element main = source.getElementById("main");
-        Element result = main.getFirstElementByClass("search_result");
-        int totalCount = getTotalCount(result);
-        logger.debug("totalCount: {}", totalCount);
         
-        Element numberLine = main.getFirstElementByClass("search_numberline");
-        int offset = getOffset(numberLine);
+        Element number = main.getFirstElementByClass("search_number");
+        int totalCount = getTotalCount(number);
+        logger.debug("totalCount: {}", totalCount);
+        int offset = getOffset(number);
         logger.debug("offset: {}", offset);
         
-        List<Element> elements = main.getAllElementsByClass("program_bg");
+        Calendar today = DateUtils.getToday(DateUtils.JST);
+        
+        List<Element> elements = main.getFirstElementByClass("programlist")
+                .getAllElements("li");
         List<Program> list = new ArrayList<Program>();
         for (Element element : elements) {
-            list.add(toProgram(element));
+            list.add(toProgram(element, today));
         }
         
         return new Page<Program>(totalCount, offset, list);
     }
 
-    int getTotalCount(Element result) {
-        Segment content = result.getAllElements("em").get(1).getContent();
+    int getTotalCount(Element number) {
+        Segment content = number.getAllElements("em").get(0).getContent();
         return Integer.parseInt(content.toString());
     }
 
-    int getOffset(Element numberLine) {
-        Segment content = numberLine.getAllElements("em").get(1).getContent();
+    int getOffset(Element number) {
+        Segment content = number.getAllElements("em").get(1).getContent();
         return Integer.parseInt(content.toString().split("\\D")[0]) - 1;
     }
 
-    Program toProgram(Element element) {
+    Program toProgram(Element element, Calendar today) {
         Program program = new Program();
-        Element left = element.getFirstElementByClass("program_l");
-        String date = getDate(left);
+        Element left = element.getFirstElementByClass("leftarea");
+        String date = getDate(left, today);
         program.setDate(date);
         logger.debug("date: {}", date);
         
@@ -123,7 +127,7 @@ public class ProgramSearchServiceImpl implements ProgramSearchService {
         program.setGcode(gcode);
         logger.debug("gcode: {}", gcode);
         
-        Element right = element.getFirstElementByClass("program_r");
+        Element right = element.getFirstElementByClass("rightarea");
         String title = getTitle(right);
         program.setTitle(title);
         logger.debug("title: {}", title);
@@ -147,15 +151,16 @@ public class ProgramSearchServiceImpl implements ProgramSearchService {
      * 
      * @return "YYYY-MM-DD"
      */
-    String getDate(Element left) {
-        String s = left.getFirstElement("span").getContent().toString();
+    String getDate(Element left, Calendar today) {
+        String s = left.getFirstElement("em").getContent().toString();
         String[] a = s.split("/");
-        for (int i = 1; i <= 2; ++i) {
-            if (a[i].length() == 1) {
-                a[i] = '0' + a[i];
-            }
+        int year = DateUtils.getYear(today);
+        int month = Integer.parseInt(a[0]);
+        int day = Integer.parseInt(a[1]);
+        if (month < DateUtils.getMonth(today)) {
+            ++year;
         }
-        return StringUtils.join(a, '-');
+        return String.format("%04d-%02d-%02d", year, month, day);
     }
 
     /**
@@ -164,7 +169,7 @@ public class ProgramSearchServiceImpl implements ProgramSearchService {
      * @return ["hh:mm", "hh:mm"]
      */
     String[] getTime(Element left) {
-        String[] a = left.getFirstElement("em")
+        String[] a = left.getAllElements("em").get(1)
                 .getContent().toString().split("[^\\d:]");
         for (int i = 0; i < 2; ++i) {
             if (a[i].length() == 4) {
@@ -180,16 +185,14 @@ public class ProgramSearchServiceImpl implements ProgramSearchService {
     }
 
     String getTitle(Element right) {
-        return right.getFirstElement("a")
-                .getFirstElement("em").getContent().toString();
+        return right.getFirstElement("a").getContent().toString();
     }
 
     String[] getChannel(Element right) {
-        Element p = right.getFirstElementByClass("pt5p");
-        String channel = p.getFirstElement("em").getContent().toString();
-        String s = p.getContent().toString();
-        int index = s.lastIndexOf('（') + 1;
-        String medium = s.substring(index, s.length() - 1);
+        String s = right.getFirstElementByClass("pr35").getContent().toString();
+        int index = s.lastIndexOf('（');
+        String channel = s.substring(0, index);
+        String medium = s.substring(index + 1, s.length() - 1);
         return new String[] {channel, medium};
     }
 

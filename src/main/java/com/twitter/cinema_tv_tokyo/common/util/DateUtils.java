@@ -43,19 +43,16 @@ public class DateUtils {
         return format.getCalendar();
     }
 
-    static final int MILLIS_IN_DAY = 24 * 60 * 60 * 1000;
-
-    public static int getDays(String from, String to) {
-        TimeZone tz = TimeZone.getDefault();
-        return getDays(parseDate(from, tz), parseDate(to, tz));
+    public static int getYear(Calendar calendar) {
+        return calendar.get(Calendar.YEAR);
     }
 
-    public static int getDays(Calendar from, Calendar to) {
-        return (int) (getMillis(from, to) / MILLIS_IN_DAY);
+    public static int getMonth(Calendar calendar) {
+        return calendar.get(Calendar.MONTH) + 1;
     }
 
-    public static long getMillis(Calendar from, Calendar to) {
-        return to.getTimeInMillis() - from.getTimeInMillis();
+    public static int getDay(Calendar calendar) {
+        return calendar.get(Calendar.DAY_OF_MONTH);
     }
 
     public static int getDayOfWeek(String ymd) {
@@ -69,6 +66,21 @@ public class DateUtils {
         } else {
             return dayOfWeek - 1;
         }
+    }
+
+    static final int MILLIS_IN_DAY = 24 * 60 * 60 * 1000;
+
+    public static int getDays(String from, String to) {
+        TimeZone tz = TimeZone.getDefault();
+        return getDays(parseDate(from, tz), parseDate(to, tz));
+    }
+
+    public static int getDays(Calendar from, Calendar to) {
+        return (int) (getMillis(from, to) / MILLIS_IN_DAY);
+    }
+
+    public static long getMillis(Calendar from, Calendar to) {
+        return to.getTimeInMillis() - from.getTimeInMillis();
     }
 
 }

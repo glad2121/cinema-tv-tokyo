@@ -40,12 +40,12 @@ public class ProgramSearchServiceImplTest {
     public void testParse() throws Exception {
         URL url = getClass().getResource("example.html");
         Page<Program> page = service.parse(url);
-        assertEquals(17, page.getTotalCount());
-        assertEquals(10, page.getOffset());
-        assertEquals(7, page.getCount());
+        assertEquals(9, page.getTotalCount());
+        assertEquals(0, page.getOffset());
+        assertEquals(9, page.getCount());
         
         List<Program> list = page.getContent();
-        assertEquals(7, list.size());
+        assertEquals(9, list.size());
     }
 
     public static void main(String[] args) {
